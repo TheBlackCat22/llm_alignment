@@ -191,7 +191,6 @@ class PPOTrainer(BaseTrainer):
             log_with=config.log_with,
             gradient_accumulation_steps=config.gradient_accumulation_steps,
             project_config=ProjectConfiguration(**config.project_kwargs),
-            project_dir='./logs',
             **config.accelerator_kwargs,
         )
 

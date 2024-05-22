@@ -1,0 +1,58 @@
+DataConfig :
+    query_dataset: "imdb"
+    input_min_text_length: 2
+    input_max_text_length: 8
+
+PPOConfig : 
+    seed: 0  # Seed value for random generations
+    log_with: "tensorboard"  # Log with either 'wandb' or 'tensorboard', check  https://huggingface.co/docs/accelerate/usage_guides/tracking for more details
+    model_name: "gpt2"  # Name of model to use
+    query_dataset: "imdb"  # Name of dataset to query
+    project_kwargs:  # Keyword arguments for the accelerator project config (e.g. `logging_dir`)
+        logging_dir : './logs' 
+    tracker_project_name: "trl"  # Name of project to use for tracking
+    
+    # hyperparameters
+    steps: 20000  # Number of training steps
+    learning_rate: 1.41e-5  # Adam learning rate
+    adap_kl_ctrl: True  # Use adaptive KL control, otherwise linear
+    init_kl_coef: 0.2  # Initial KL penalty coefficient (used for adaptive and linear control)
+    kl_penalty: "kl"  # kl penalty options: 'kl': model_logp - ref_logp,  'abs': abs(kl),  'mse': mean squared error mse(kl) and 'full': the actual kl for all tokens in the distribution
+    target: 6  # Target KL value for adaptive KL control
+    horizon: 10000  # Horizon for adaptive KL control
+    gamma: 1  # Gamma parameter for advantage calculation
+    lam: 0.95  # Lambda parameter for advantage calculation
+    cliprange: 0.2  # Range for clipping in PPO policy gradient loss
+    cliprange_value: 0.2  # Range for clipping values in loss calculation
+    vf_coef: 0.1  # Scaling factor for value loss
+    batch_size: 128  # Number of samples per optimisation step
+    mini_batch_size: 128  # Number of samples optimized in each mini batch
+    gradient_accumulation_steps: 1  # The number of gradient accumulation steps
+    ppo_epochs: 4  # Number of optimisation epochs per batch of samples
+    max_grad_norm: null  # Maximum gradient norm for gradient clipping
+    early_stopping: False  # Whether to stop the PPO optimization loop early is the KL too high
+    target_kl: 1  # Stop early if we exceed this value by over 50%
+    compare_steps: 1  # Number of steps between comparison of the current reward with the best seen so far
+    ratio_threshold: 10.0  # Skip mini-batches with high PPO ratios that can cause loss spikes
+    use_score_scaling: False  # Use score scaling
+    use_score_norm: False  # Use score normalization. Only applicable if use_score_scaling is True
+    score_clip: null  # Score clipping
+    whiten_rewards: False  # Whiten the rewards before compute advantages
+
+LoraConfig:
+    use_peft: False  # whether to use peft/lora
+    lora_alpha: 16  # the lora alpha parameter
+    lora_r: 16  # the lora r parameter
+
+RewardConfig:
+    reward_model: "sentiment-analysis:lvwerra/distilbert-imdb"  # The reward model to use
+    top_k: null  # Get the sentiment score for each token
+    function_to_apply : "none"
+    batch_size: 16
+
+GenerationConfig : 
+    min_length: -1
+    top_k: 0.0
+    top_p: 1.0
+    do_sample: True
+    max_new_tokens: 32

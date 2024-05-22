@@ -3,4 +3,3 @@ logs/
 
 SlurmOut.*
 run.slurm
-gpt2-sentiment.ipynb
