@@ -1,5 +1,7 @@
 __pycache__
-logs/
 
-SlurmOut.*
+models/
+output/
+
+OutMain*
 run.slurm
