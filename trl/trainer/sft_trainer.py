@@ -38,10 +38,10 @@ from transformers.modeling_utils import unwrap_model
 from transformers.trainer_callback import TrainerCallback
 from transformers.trainer_utils import EvalPrediction
 
-from trl.extras.dataset_formatting import get_formatting_func_from_dataset
-from trl.import_utils import is_peft_available
-from trl.trainer.sft_config import SFTConfig
-from trl.trainer.utils import (
+from ..extras.dataset_formatting import get_formatting_func_from_dataset
+from ..import_utils import is_peft_available
+from .sft_config import SFTConfig
+from .utils import (
     ConstantLengthDataset,
     DataCollatorForCompletionOnlyLM,
     RichProgressCallback,
@@ -141,6 +141,11 @@ class SFTTrainer(Trainer):
         dataset_kwargs: Optional[Dict] = None,
         eval_packing: Optional[bool] = None,
     ):
+        if args is None:
+            output_dir = "tmp_trainer"
+            warnings.warn(f"No `SFTConfig` passed, using `output_dir={output_dir}`.")
+            args = SFTConfig(output_dir=output_dir)
+
         if model_init_kwargs is not None:
             warnings.warn(
                 "You passed `model_init_kwargs` to the SFTTrainer, the value you passed will override the one in the `SFTConfig`."

@@ -4,7 +4,7 @@ from typing import Callable, Literal, Optional, Union
 from datasets import Dataset, Value
 from transformers import AutoTokenizer
 
-from trl.trainer.utils import ConstantLengthDataset
+from ..trainer.utils import ConstantLengthDataset
 
 
 FORMAT_MAPPING = {

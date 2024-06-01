@@ -8,24 +8,24 @@ ModelDict = {
     "siebert" : ['siebert/sentiment-roberta-large-english', AutoModelForSequenceClassification]
 }
 
-ModelDir = './models'
+ModelDir = './models/Default'
 
 if not os.path.exists(ModelDir):
     os.makedirs(ModelDir)
 
 for model_name in ModelDict.keys():
 
-    if os.path.exists(os.path.join(ModelDir, model_name, 'default')):
+    if os.path.exists(os.path.join(ModelDir, model_name)):
         continue
 
     print(f'\nDownloading {model_name}')
 
-    os.makedirs(os.path.join(ModelDir, model_name, 'default'))
+    os.makedirs(os.path.join(ModelDir, model_name))
 
     model_link, model_class = ModelDict[model_name]
     model = model_class.from_pretrained(model_link)
     tokenizer = AutoTokenizer.from_pretrained(model_link)
 
-    model.save_pretrained(os.path.join(ModelDir, model_name, 'default'))
-    tokenizer.save_pretrained(os.path.join(ModelDir, model_name, 'default'))
+    model.save_pretrained(os.path.join(ModelDir, model_name))
+    tokenizer.save_pretrained(os.path.join(ModelDir, model_name))
     

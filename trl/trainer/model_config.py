@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from trl.core import flatten_dict
+from ..core import flatten_dict
 
 
 @dataclass

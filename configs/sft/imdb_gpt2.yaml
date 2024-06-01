@@ -1,5 +1,5 @@
 Task: SFT
-Model: models/gpt2
+Model: models/Default/gpt2
 Dataset: imdb
 Seed: 42
 OutputDir: output/Run1
@@ -38,5 +38,5 @@ GenerationConfig:
 
 
 MetricConfig:
-  RewardModel: models/distilbert
+  RewardModel: models/Default/distilbert
   label_idx: 1

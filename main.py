@@ -45,9 +45,6 @@ print('\n', data)
 # Supervised Fine Tuning
 if config['Task'] == 'SFT':
 
-    # Default Model Location
-    model_dir = os.path.join(config['Model'], 'default')
-
     # Creating Lora Config
     if config.get('LoraConfig'):
         peft_config = LoraConfig(**config['LoraConfig'])
@@ -61,7 +58,7 @@ if config['Task'] == 'SFT':
         **config.get('SFTConfig', {})
         )
     trainer = SFTTrainer(
-        model = model_dir,
+        model = config['Model'],
         args = sft_config,
         train_dataset = data['train'],
         eval_dataset = data['eval'],
@@ -72,11 +69,6 @@ if config['Task'] == 'SFT':
     if not args.only_generate:
         # Training
         trainer.train()
-
-        # Saving Best Model
-        output_dir = os.path.join(config['OutputDir'], config['Task'], 'default')
-        trainer.save_model(output_dir)
-
 
     tokenizer = trainer.tokenizer
     model = trainer.model

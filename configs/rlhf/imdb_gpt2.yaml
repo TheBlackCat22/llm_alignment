@@ -1,19 +1,24 @@
-Task: SFT
-Model: models/Default/gpt2-large
+Task: RLHF
+Model: models/Default/gpt2
 Dataset: imdb
-Seed: 10
-OutputDir: output/Run2
+Seed: 42
+OutputDir: output/Run3
 
 
 DataConfig: 
-  only_positive: True
+  only_positive: False
   eval_ratio: 0.1
   test_size: 5000
+
+
+PromptConfig:
+  min_tokens: 5
+  max_tokens: 64
   
 
 SFTConfig:
   per_device_eval_batch_size: 16
-  num_train_epochs: 2  
+  num_train_epochs: 10  
   report_to: tensorboard
   logging_steps: 100
   save_steps: 500
@@ -22,21 +27,16 @@ SFTConfig:
   evaluation_strategy: steps
   eval_steps: 100
   load_best_model_at_end: True
-  metric_for_best_model: eval_loss
-
-
-PromptConfig:
-  min_tokens: 2
-  max_tokens: 8
+  metric_for_best_model: "eval_loss"
 
 
 GenerationConfig:
   do_sample: True
   top_k: 50
-  min_length: -1
+  min_length: 48
   max_new_tokens: 48
 
 
 MetricConfig:
-  RewardModel: models/Default/siebert
+  RewardModel: models/Default/distilbert
   label_idx: 1

@@ -24,7 +24,7 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 from transformers.generation import TopKLogitsWarper, TopPLogitsWarper
 
-from trl.import_utils import is_npu_available, is_xpu_available
+from .import_utils import is_npu_available, is_xpu_available
 
 
 try:

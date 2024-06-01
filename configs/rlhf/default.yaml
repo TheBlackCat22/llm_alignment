@@ -1,0 +1,77 @@
+LoraConfig:
+  # LoraConfig
+  r: 8  # Lora attention dimension (the "rank")
+  target_modules: null  # The names of the modules to apply the adapter to. If this is specified, only the modules with the specified names will be replaced. When passing a string, a regex match will be performed. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as 'all-linear', then all linear/Conv1D modules are chosen, excluding the output layer. If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised -- in this case, you should specify the target modules manually.
+  lora_alpha: 8  # The alpha parameter for Lora scaling.
+  lora_dropout: 0.0  # The dropout probability for Lora layers
+  fan_in_fan_out: False  # Set this to True if the layer to replace stores weight like (fan_in, fan_out). For example, gpt-2 uses `Conv1D` which stores weights like (fan_in, fan_out) and hence this should be set to `True`.
+  bias: 'none'  # Bias type for LoRA. Can be 'none', 'all' or 'lora_only'. If 'all' or 'lora_only', the corresponding biases will be updated during training. Be aware that this means that, even when disabling the adapters, the model will not produce the same output as the base model would have without adaptation.
+  use_rslora: False  # When set to True, uses <a href='https://doi.org/10.48550/arXiv.2312.03732'>Rank-Stabilized LoRA</a> which sets the adapter scaling factor to `lora_alpha/math.sqrt(r)`, since it was proven to work better. Otherwise, it will use the original default value of `lora_alpha/r`.
+  modules_to_save: null  # List of modules apart from adapter layers to be set as trainable and saved in the final checkpoint.
+  init_lora_weights: True  # How to initialize the weights of the adapter layers. Passing True (default) results in the default initialization from the reference implementation from Microsoft. Passing 'gaussian' results in Gaussian initialization scaled by the LoRA rank for linear and layers. Setting the initialization to False leads to completely random initialization and is discouraged. Pass `'loftq'` to use LoftQ initialization. Passing 'pissa' results in the initialization of PiSSA, which converge more rapidly than LoRA and ultimately achieve superior performance. Moreover, PiSSA reduces the quantization error compared to QLoRA, leading to further enhancements. Passing 'pissa_niter_[number of iters]' initiates Fast-SVD-based PiSSA initialization, where [number of iters] indicates the number of subspace iterations to perform FSVD, and must be a nonnegative integer. When the [number of iters] is set to 16, it can complete the initialization of a 7b model within seconds, and the training effect is approximately equivalent to using SVD. For more information, see <a href='https://arxiv.org/abs/2404.02948'>Principal Singular values and Singular vectors Adaptation</a>.
+  layers_to_transform: null  # The layer indices to transform. If a list of ints is passed, it will apply the adapter to the layer indices that are specified in this list. If a single integer is passed, it will apply the transformations on the layer at this index.
+  layers_pattern: null  # The layer pattern name, used only if `layers_to_transform` is different from `None`.
+  rank_pattern: {}  # The mapping from layer names or regexp expression to ranks which are different from the default rank specified by `r`.
+  alpha_pattern: {}  # The mapping from layer names or regexp expression to alphas which are different from the default alpha specified by `lora_alpha`.
+  megatron_config: null  # The TransformerConfig arguments for Megatron. It is used to create LoRA's parallel linear layer. You can get it like this, `core_transformer_config_from_args(get_args())`, these two functions being from Megatron. The arguments will be used to initialize the TransformerConfig of Megatron. You need to specify this parameter when you want to apply LoRA to the ColumnParallelLinear and RowParallelLinear layers of megatron.
+  megatron_core: 'megatron.core'  # The core module from Megatron to use, defaults to `"megatron.core"`.
+  loftq_config: {}  # The configuration of LoftQ. If this is not None, then LoftQ will be used to quantize the backbone weights and initialize Lora layers. Also pass `init_lora_weights='loftq'`. Note that you should not pass a quantized model in this case, as LoftQ will quantize the model itself.
+  use_dora: False  # Enable 'Weight-Decomposed Low-Rank Adaptation' (DoRA). This technique decomposes the updates of the weights into two parts, magnitude and direction. Direction is handled by normal LoRA, whereas the magnitude is handled by a separate learnable parameter. This can improve the performance of LoRA especially at low ranks. Right now, DoRA only supports linear and Conv2D layers. DoRA introduces a bigger overhead than pure LoRA, so it is recommended to merge weights for inference. For more information, see https://arxiv.org/abs/2402.09353.
+  layer_replication: null  # Build a new stack of layers by stacking the original model layers according to the ranges specified. This allows expanding (or shrinking) the model without duplicating the base model weights. The new layers will all have separate LoRA adapters attached to them.
+
+  # PeftConfig
+  peft_type: null  # The type of Peft method to use.
+  task_type: null  # The type of task to perform.
+  inference_mode: False  # Whether to use the Peft model in inference mode.
+
+  # PeftConfigMixin
+  auto_mapping: null  # "An auto mapping dict to help retrieve the base model class if needed."
+
+  base_model_name_or_path: null
+  revision: null
+
+  
+PPOConfig:
+  exp_name: main  # the name of this experiment (by default is the file name without the extension name)
+  seed: 0  # Seed value for random generations
+  log_with: null  # Log with either 'wandb' or 'tensorboard', check  https://huggingface.co/docs/accelerate/usage_guides/tracking for more details
+  task_name: null  # Name of task to use - used only for tracking purposes
+  model_name: gpt2  # Name of model to use - used only for tracking purposes
+  query_dataset: imdb  # Name of dataset to query - used only for tracking purposes
+  reward_model: sentiment-analysis:lvwerra/distilbert-imdb  # The reward model to use - used only for tracking purposes
+  remove_unused_columns: True  # Remove unused columns from the dataset if `datasets.Dataset` is used
+  tracker_kwargs: {}  # Keyword arguments for the tracker (e.g. python ppo.py --tracker_kwargs='{"wandb": {"entity": "my_wandb_entity", "name": "my_exp_name"}}'
+  accelerator_kwargs: {} # Keyword arguments for the accelerator
+  project_kwargs: {}  # Keyword arguments for the accelerator project config (e.g. `logging_dir`)
+  tracker_project_name: trl  # Name of project to use for tracking
+  push_to_hub_if_best_kwargs: {}  # Keyword arguments for pushing model to the hub during training (e.g. repo_id)
+
+  # hyperparameters
+  steps: 20000  # Number of training steps
+  learning_rate: 1.41e-5  # Adam learning rate
+  adap_kl_ctrl: True  # Use adaptive KL control, otherwise linear
+  init_kl_coef: 0.2   # Initial KL penalty coefficient (used for adaptive and linear control)
+  kl_penalty: kl  # kl penalty options: 'kl': model_logp - ref_logp,  'abs': abs(kl),  'mse': mean squared error mse(kl) and 'full': the actual kl for all tokens in the distribution
+  target: 6  # Target KL value for adaptive KL control
+  horizon: 10000  # Horizon for adaptive KL control
+  gamma: 1  # Gamma parameter for advantage calculation
+  lam: 0.95  # Lambda parameter for advantage calculation
+  cliprange: 0.2  # Range for clipping in PPO policy gradient loss
+  cliprange_value: 0.2  # Range for clipping values in loss calculation
+  vf_coef: 0.1  # Scaling factor for value loss
+  batch_size: 128  # Number of samples per optimisation step
+  mini_batch_size: 128  # Number of samples optimized in each mini batch
+  gradient_accumulation_steps: 1  # The number of gradient accumulation steps
+  world_size: null  # The world size for distributed training
+  ppo_epochs: 4  # Number of optimisation epochs per batch of samples
+  max_grad_norm: null  # Maximum gradient norm for gradient clipping
+  optimize_device_cache: False  # Optimize device cache for slightly more memory-efficient training
+  early_stopping: False  # Whether to stop the PPO optimization loop early is the KL too high
+  target_kl: 1  # Stop early if we exceed this value by over 50%
+  compare_steps: 1  # Number of steps between comparison of the current reward with the best seen so far
+  ratio_threshold: 10.0  # Skip mini-batches with high PPO ratios that can cause loss spikes
+  use_score_scaling: False  # Use score scaling
+  use_score_norm: False  # Use score normalization. Only applicable if use_score_scaling is True
+  score_clip: None  # Score clipping
+  whiten_rewards: False  # Whiten the rewards before compute advantages
+  gradient_checkpointing: False  # Enable gradient checkpointing
