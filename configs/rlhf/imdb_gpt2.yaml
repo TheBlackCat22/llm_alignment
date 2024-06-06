@@ -1,5 +1,5 @@
 Task: RLHF
-Model: models/Default/gpt2
+Model: models/SFT/gpt2
 Dataset: imdb
 Seed: 42
 OutputDir: output/Run3
@@ -7,8 +7,8 @@ OutputDir: output/Run3
 
 DataConfig: 
   only_positive: False
-  eval_ratio: 0.1
-  test_size: 5000
+  eval_size: 2500
+  test_size: 15000
 
 
 PromptConfig:
@@ -16,18 +16,23 @@ PromptConfig:
   max_tokens: 64
   
 
-SFTConfig:
-  per_device_eval_batch_size: 16
-  num_train_epochs: 10  
-  report_to: tensorboard
-  logging_steps: 100
-  save_steps: 500
-  save_total_limit: 1
-  save_only_model: True
-  evaluation_strategy: steps
-  eval_steps: 100
-  load_best_model_at_end: True
-  metric_for_best_model: "eval_loss"
+PPOConfig:
+  steps: 50  # Number of training steps
+  learning_rate: 1.0e-05  # Adam learning rate
+  adap_kl_ctrl: False  # Use adaptive KL control, otherwise linear
+  init_kl_coef: 0.001   # Initial KL penalty coefficient (used for adaptive and linear control)
+  gamma: 0.99  # Gamma parameter for advantage calculation
+  lam: 0.95  # Lambda parameter for advantage calculation
+  cliprange: 0.2  # Range for clipping in PPO policy gradient loss
+  cliprange_value: 0.2  # Range for clipping values in loss calculation
+  vf_coef: 0.5  # Scaling factor for value loss
+  batch_size: 112  # Number of samples per optimisation step
+  mini_batch_size: 28  # Number of samples optimized in each mini batch
+  gradient_accumulation_steps: 1  # The number of gradient accumulation steps
+  ppo_epochs: 5  # Number of optimisation epochs per batch of samples
+  max_grad_norm: 1.0  # Maximum gradient norm for gradient clipping
+  use_score_scaling: True  # Use score scaling
+  use_score_norm: True  # Use score normalization. Only applicable if use_score_scaling is True
 
 
 GenerationConfig:
@@ -35,6 +40,11 @@ GenerationConfig:
   top_k: 50
   min_length: 48
   max_new_tokens: 48
+
+
+RewardConfig:
+  RewardModel: models/Default/distilbert
+  label_idx: 1
 
 
 MetricConfig:

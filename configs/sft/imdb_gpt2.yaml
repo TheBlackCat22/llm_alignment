@@ -7,27 +7,22 @@ OutputDir: output/Run1
 
 DataConfig: 
   only_positive: True
-  eval_ratio: 0.1
-  test_size: 5000
-  
-
-SFTConfig:
-  per_device_eval_batch_size: 16
-  num_train_epochs: 10  
-  report_to: tensorboard
-  logging_steps: 100
-  save_steps: 500
-  save_total_limit: 1
-  save_only_model: True
-  evaluation_strategy: steps
-  eval_steps: 100
-  load_best_model_at_end: True
-  metric_for_best_model: "eval_loss"
+  eval_size: 2500
+  test_size: 15000
 
 
 PromptConfig:
   min_tokens: 5
   max_tokens: 64
+  
+
+SFTConfig:
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 16
+  num_train_epochs: 10  
+  logging_steps: 100
+  save_steps: 500
+  eval_steps: 100
 
 
 GenerationConfig:

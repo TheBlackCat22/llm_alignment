@@ -1,3 +1,4 @@
 Model, RunName, Perplexity, RewardScore
 Gpt2, Default, 34.96, 0.42
 Gpt2, SFT, 37.8, 0.50
+Gpt2-Large, Default, 23.62, 0.56

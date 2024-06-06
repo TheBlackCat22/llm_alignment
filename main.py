@@ -3,12 +3,15 @@ import yaml
 import argparse
 from pprint import pprint
 from peft import LoraConfig
-
 from trl.core import set_seed
+
 from trl.trainer.sft_config import SFTConfig
-from trl.trainer.sft_trainer import SFTTrainer
+from trl.trainer.sft_trainer import SFTTrainer 
+from trl.trainer.ppo_config import PPOConfig
+from trl.trainer.ppo_trainer import PPOTrainer
 
 from src.utils import *
+from src.metrics import LearnedRewardMetric
 
 
 #####################################################################
@@ -46,15 +49,18 @@ print('\n', data)
 if config['Task'] == 'SFT':
 
     # Creating Lora Config
-    if config.get('LoraConfig'):
-        peft_config = LoraConfig(**config['LoraConfig'])
-    else:
-        peft_config = None
+    peft_config = LoraConfig(**config['LoraConfig']) if config.get('LoraConfig') else None
 
     # Creating SFT Config & Trainer
     sft_config = SFTConfig(
         output_dir = config['OutputDir'],
-        dataset_text_field = 'reference',
+        dataset_text_field = 'text',
+        report_to = 'tensorboard',
+        save_total_limit = 1,
+        save_only_model = True,
+        evaluation_strategy = 'steps',
+        load_best_model_at_end = True,
+        metric_for_best_model = "eval_loss",
         **config.get('SFTConfig', {})
         )
     trainer = SFTTrainer(
@@ -65,7 +71,6 @@ if config['Task'] == 'SFT':
         peft_config=peft_config
         )
 
-    
     if not args.only_generate:
         # Training
         trainer.train()
@@ -76,15 +81,64 @@ if config['Task'] == 'SFT':
     # Creating Prompts and Generating Completions
     data['test'] = create_prompts(data['test'], tokenizer, config['PromptConfig'])
     data['test'] = compute_generations(data['test'], model, tokenizer, config['GenerationConfig'])
+
+    # Computing Metrics
+    metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
+    pprint(metrics)
+
+    if not args.only_generate:
+        trainer.log(metrics)
 #####################################################################
 
 
 #####################################################################
 # Reinforcement Learning from Human Feedback
 elif config['Task'] == 'RLHF':
-    # tokenizer = build_tokenizer(model_dir, config['TokenizerConfig'])
-    # model = build_model(model_dir, tokenizer, config.get('LoraConfig'))
-    pass
+
+    # Creating Lora Config
+    peft_config = LoraConfig(**config['LoraConfig']) if config.get('LoraConfig') else None
+    
+    # Initializing Policy Model and Tokenizer
+    tokenizer = build_tokenizer(config['Model'])
+    model = build_policy_model(config['Model'], tokenizer, peft_config)
+
+    # Initializing Reward Model
+    reward_model = LearnedRewardMetric(*config['RewardConfig'].values())
+
+    # Creating Prompts
+    data = create_prompts(data, tokenizer, config['PromptConfig'])
+
+    # Creating PPOConfig and PPOTrainer
+    ppo_config = PPOConfig(
+        seed = config['Seed'],
+        log_with = 'tensorboard',
+        model_name = config['Model'],
+        query_dataset = config['Dataset'],
+        reward_model = config['RewardConfig']['RewardModel'],
+        project_kwargs= {"logging_dir" : config['OutputDir']},
+        tracker_project_name =  'runs',
+        **config.get('PPOConfig', {})
+    )
+    trainer = PPOTrainer(
+        config =  ppo_config,
+        model = model,
+        tokenizer = tokenizer,
+        dataset = data['train'], 
+        data_collator = collator
+    )
+
+    if not args.only_generate:
+        trainer = ppo_trainer_train(trainer, config['GenerationConfig'], reward_model)
+
+    # Generating Completions
+    data['test'] = compute_generations(data['test'], trainer.model, trainer.tokenizer, config['GenerationConfig'])
+
+    # Computing Metrics
+    metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
+    pprint(metrics)
+
+    if not args.only_generate:
+        trainer.accelerator.log(metrics, step = 0)
 #####################################################################
 
 
@@ -92,15 +146,4 @@ elif config['Task'] == 'RLHF':
 # Direct Preference Optimization
 elif config['Task'] == 'DPO':
     pass
-#####################################################################
-
-
-#####################################################################
-# Computing Metrics
-config['MetricConfig']['RewardModel'] = os.path.join(config['MetricConfig']['RewardModel'], 'default')
-metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
-pprint(metrics)
-
-if not args.only_generate:
-    trainer.log(metrics)
 #####################################################################
