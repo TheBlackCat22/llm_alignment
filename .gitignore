@@ -5,5 +5,4 @@ __pycache__
 /slurm/
 
 /OutMain*
-/Results.csv
 /stats_*

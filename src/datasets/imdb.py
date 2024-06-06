@@ -6,12 +6,10 @@ def dataloader(config):
 
     dataset = load_dataset("imdb")
     dataset.pop('unsupervised')
-    dataset.shuffle()
 
-    total_test_size = len(dataset['test'])
-    dataset['eval'] = dataset['test'].select(range(config['test_size'], total_test_size))
-
-    dataset['test'] = dataset['test'].select(range(0, config['test_size']))
+    test_eval = dataset['test'].train_test_split(test_size=config['test_size'], stratify_by_column = 'label')
+    dataset['test'] = test_eval['test']
+    dataset['eval'] = test_eval['train']
 
     if config.get('only_positive', False):
         # Keeping only Positive Sentiment

@@ -207,6 +207,6 @@ PPOConfig:
   ratio_threshold: 10.0  # Skip mini-batches with high PPO ratios that can cause loss spikes
   use_score_scaling: False  # Use score scaling
   use_score_norm: False  # Use score normalization. Only applicable if use_score_scaling is True
-  score_clip: None  # Score clipping
+  score_clip: null  # Score clipping
   whiten_rewards: False  # Whiten the rewards before compute advantages
   gradient_checkpointing: False  # Enable gradient checkpointing

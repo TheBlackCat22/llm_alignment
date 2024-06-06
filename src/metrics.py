@@ -2,13 +2,15 @@ import os
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
+from trl.models.modeling_value_head import AutoModelForCausalLMWithValueHead
+
 
 def perplexity(data, model, tokenizer):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
 
-    encodings = tokenizer("\n\n".join(data["text"]), return_tensors="pt").to(device)
+    encodings = tokenizer("\n\n".join(data["text"]), return_tensors="pt")
 
     max_length = model.config.n_positions
     stride = 512
@@ -21,13 +23,16 @@ def perplexity(data, model, tokenizer):
         trg_len = end_loc - i  # may be different from stride on last loop
 
         # get inputs and target ids
-        input_ids = encodings.input_ids[:, begin_loc:end_loc]
+        input_ids = encodings.input_ids[:, begin_loc:end_loc].to(device)
         target_ids = input_ids.clone()
         target_ids[:, :-trg_len] = -100
 
         with torch.no_grad():
             outputs = model(input_ids, labels=target_ids)
-            neg_log_likelihood = outputs[0] * trg_len
+            if isinstance(model, AutoModelForCausalLMWithValueHead):
+                neg_log_likelihood = outputs[1] * trg_len
+            else:
+                neg_log_likelihood = outputs[0] * trg_len
 
         nlls.append(neg_log_likelihood)
 

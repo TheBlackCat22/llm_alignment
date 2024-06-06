@@ -25,6 +25,9 @@ args = parser.parse_args()
 
 #####################################################################
 # Reading Config File
+print('\n*****************')
+print('Config')
+print('*****************')
 with open(args.config, "r") as f:
     config = yaml.safe_load(f)
 pprint(config, indent=4, width=2)
@@ -39,6 +42,9 @@ set_seed(config['Seed'])
 
 #####################################################################
 # Importing Data
+print('\n*****************')
+print('Importing Data')
+print('*****************')
 data = build_data(config['Dataset'], config.get('DataConfig'))
 print('\n', data)  
 #####################################################################
@@ -73,16 +79,29 @@ if config['Task'] == 'SFT':
 
     if not args.only_generate:
         # Training
+        print('\n*****************')
+        print('Training')
+        print('*****************')
         trainer.train()
 
     tokenizer = trainer.tokenizer
     model = trainer.model
 
     # Creating Prompts and Generating Completions
+    print('\n*****************')
+    print('Creating Prompts')
+    print('*****************')
     data['test'] = create_prompts(data['test'], tokenizer, config['PromptConfig'])
+
+    print('\n*****************')
+    print('Generating Completions')
+    print('*****************')
     data['test'] = compute_generations(data['test'], model, tokenizer, config['GenerationConfig'])
 
     # Computing Metrics
+    print('\n*****************')
+    print('Computing Metrics')
+    print('*****************')
     metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
     pprint(metrics)
 
@@ -106,6 +125,9 @@ elif config['Task'] == 'RLHF':
     reward_model = LearnedRewardMetric(*config['RewardConfig'].values())
 
     # Creating Prompts
+    print('\n*****************')
+    print('Creating Prompts')
+    print('*****************')
     data = create_prompts(data, tokenizer, config['PromptConfig'])
 
     # Creating PPOConfig and PPOTrainer
@@ -128,12 +150,21 @@ elif config['Task'] == 'RLHF':
     )
 
     if not args.only_generate:
+        print('\n*****************')
+        print('Training')
+        print('*****************')
         trainer = ppo_trainer_train(trainer, config['GenerationConfig'], reward_model)
 
     # Generating Completions
+    print('\n*****************')
+    print('Generating Completions')
+    print('*****************')
     data['test'] = compute_generations(data['test'], trainer.model, trainer.tokenizer, config['GenerationConfig'])
 
     # Computing Metrics
+    print('\n*****************')
+    print('Computing Metrics')
+    print('*****************')
     metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
     pprint(metrics)
 

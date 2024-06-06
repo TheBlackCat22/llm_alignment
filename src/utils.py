@@ -79,7 +79,7 @@ def compute_metrics(data, model, tokenizer, metric_config):
     perplexity = metrics.perplexity(data, model, tokenizer)
 
     rewards = metrics.LearnedRewardMetric(metric_config['RewardModel'], metric_config['label_idx']).compute(data['response'])
-    lrm_score = torch.mean(rewards).item()
+    lrm_score = (sum(rewards)/len(rewards)).item()
 
     return {
         'perplexity' : perplexity,
@@ -112,7 +112,7 @@ def collator(data):
 
 def ppo_trainer_train(trainer, generation_config, reward_model):
 
-    highest_mean_reward = -float('inf')
+    least_loss = float('inf')
 
     for _epoch, batch in tqdm(enumerate(trainer.dataloader)):
         query_tensors = batch["input_ids"]
@@ -135,9 +135,8 @@ def ppo_trainer_train(trainer, generation_config, reward_model):
         stats = trainer.step(query_tensors, response_tensors, rewards)
         trainer.log_stats(stats, batch, rewards, columns_to_log=["query", "response", "ref_response", "ref_rewards"])
 
-        rewards = torch.tensor(rewards)
-        if rewards.mean() > highest_mean_reward:
+        if stats['ppo/loss/total'] < least_loss:
             trainer._save_pretrained(os.path.join(trainer.config.project_kwargs['logging_dir'], 'best_model'))
-            highest_mean_reward = rewards.mean()
+            least_loss = stats['ppo/loss/total']
         
     return trainer
