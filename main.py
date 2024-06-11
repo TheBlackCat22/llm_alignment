@@ -166,7 +166,7 @@ elif config['Task'] == 'RLHF':
     print('Computing Metrics')
     print('*****************')
     metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
-    pprint(metrics)
+    pprint(metrics, indent=4, width=2)
 
     if not args.only_generate:
         trainer.accelerator.log(metrics, step = 0)

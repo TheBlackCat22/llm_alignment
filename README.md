@@ -17,5 +17,5 @@
 2. RLHF
     - LLM: GPT2_SFT 
     - Scores: 
-        - Perplexity:
-        - Reward Model Score:
+        - Perplexity:  163.80
+        - Reward Model Score:  0.98
