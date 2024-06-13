@@ -54,11 +54,12 @@ def compute_generations(data, model, tokenizer, generation_config):
 
     batch_size = 16
     n_prompts = len(data['query'])
-    current_ix = 0
-    generated_texts = []
-    while current_ix < n_prompts:
 
-        prompt_texts = data['query'][current_ix : current_ix + batch_size]
+    generated_texts = []
+    for begin_idx in tqdm(range(0, n_prompts, batch_size)):
+        end_idx = min(begin_idx + batch_size, n_prompts)
+
+        prompt_texts = data['query'][begin_idx : end_idx]
         prompt_tokens = tokenizer(prompt_texts, return_tensors="pt", padding=True, return_length=False).to(device)
 
         with torch.no_grad():
@@ -66,8 +67,6 @@ def compute_generations(data, model, tokenizer, generation_config):
 
         gen_texts = tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
         generated_texts.extend(gen_texts)
-
-        current_ix += batch_size
 
     data = data.add_column('response', generated_texts)
     
@@ -97,7 +96,7 @@ def build_tokenizer(tokenizer_path):
     return tokenizer
 
 
-def build_policy_model(model_dir, tokenizer, lora_config):
+def build_policy_model(model_dir, tokenizer, lora_config=None):
     
     model = AutoModelForCausalLMWithValueHead.from_pretrained(model_dir, peft_config=lora_config)
     if model.config.pad_token_id is None:
