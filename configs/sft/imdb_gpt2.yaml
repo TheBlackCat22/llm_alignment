@@ -2,18 +2,18 @@ Task: SFT
 Model: models/Default/gpt2
 Dataset: imdb
 Seed: 42
-OutputDir: output/Run1
+OutputDir: output/Run2
 
 
 DataConfig: 
   only_positive: True
   eval_size: 2500
-  test_size: 15000
+  test_size: 5000
 
 
 PromptConfig:
-  min_tokens: 5
-  max_tokens: 64
+  min_tokens: 18
+  max_tokens: 24
   
 
 SFTConfig:

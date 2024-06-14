@@ -2,14 +2,17 @@ import os
 from datasets import load_dataset
 
 
-def dataloader(config):
+def dataloader(config, seed):
 
     dataset = load_dataset("imdb")
     dataset.pop('unsupervised')
 
-    test_eval = dataset['test'].train_test_split(test_size=config['test_size'], stratify_by_column = 'label')
-    dataset['test'] = test_eval['test']
-    dataset['eval'] = test_eval['train']
+    dataset.shuffle(seed = seed)
+
+    dataset = dataset.filter(lambda sample: len(sample["text"]) > 200)
+
+    dataset['eval'] = dataset['test'].select(range(config['test_size'], len(dataset['test'])))
+    dataset['test'] = dataset['test'].select(range(0, config['test_size']))
 
     if config.get('only_positive', False):
         # Keeping only Positive Sentiment

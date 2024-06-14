@@ -45,7 +45,7 @@ set_seed(config['Seed'])
 print('\n*****************')
 print('Importing Data')
 print('*****************', flush=True)
-data = build_data(config['Dataset'], config.get('DataConfig'))
+data = build_data(config['Dataset'], config.get('DataConfig'), config['Seed'])
 print('\n', data)  
 #####################################################################
 
@@ -109,7 +109,7 @@ if config['Task'] == 'SFT':
     print('Computing Metrics')
     print('*****************', flush=True)
     metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
-    pprint(metrics)
+    pprint(metrics, indent=4, width=2)
 
     if not args.only_generate:
         trainer.log(metrics)

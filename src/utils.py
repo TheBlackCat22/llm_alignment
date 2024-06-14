@@ -10,14 +10,14 @@ from trl.models.modeling_value_head import AutoModelForCausalLMWithValueHead
 import src.metrics as metrics
 
 
-def build_data(dataset, data_config):
+def build_data(dataset, data_config, seed):
 
     if data_config is None:
         data_config = {}
 
     if dataset == 'imdb':
         from src.datasets.imdb import dataloader
-        return dataloader(data_config)
+        return dataloader(data_config, seed)
     
     else:
         pass
@@ -81,8 +81,8 @@ def compute_metrics(data, model, tokenizer, metric_config):
     lrm_score = (sum(rewards)/len(rewards)).item()
 
     return {
-        'perplexity' : perplexity,
-        'LearnedModelScore' : lrm_score
+        'metrics/perplexity' : perplexity,
+        'metrics/LearnedModelScore' : lrm_score
     }
 
 
