@@ -2,7 +2,7 @@ Task: SFT
 Model: models/Default/gpt2
 Dataset: imdb
 Seed: 42
-OutputDir: output/Run2
+OutputDir: output/Run1
 
 
 DataConfig: 

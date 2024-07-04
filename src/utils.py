@@ -111,9 +111,12 @@ def collator(data):
 
 def ppo_trainer_train(trainer, generation_config, reward_model):
 
+    if trainer.config.steps is None:
+        trainer.config.steps = float('inf')
+
     least_loss = float('inf')
 
-    for _epoch, batch in tqdm(enumerate(trainer.dataloader)):
+    for step_num, batch in tqdm(enumerate(trainer.dataloader)):
         query_tensors = batch["input_ids"]
 
         # Get response from gpt2
@@ -137,5 +140,8 @@ def ppo_trainer_train(trainer, generation_config, reward_model):
         if stats['ppo/loss/total'] < least_loss:
             trainer._save_pretrained(os.path.join(trainer.config.project_kwargs['logging_dir'], 'best_model'))
             least_loss = stats['ppo/loss/total']
+
+        if step_num+1 == trainer.config.steps:
+            break
         
     return trainer

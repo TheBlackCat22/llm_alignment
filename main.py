@@ -55,6 +55,11 @@ print('\n', data)
 if config['Task'] == 'SFT':
 
     if not args.only_generate:
+        
+        print('\n*****************')
+        print('Training')
+        print('*****************', flush=True)
+
         # Creating Lora Config
         peft_config = LoraConfig(**config['LoraConfig']) if config.get('LoraConfig') else None
 
@@ -65,7 +70,7 @@ if config['Task'] == 'SFT':
             report_to = 'tensorboard',
             save_total_limit = 1,
             save_only_model = True,
-            evaluation_strategy = 'steps',
+            eval_strategy = 'steps',
             load_best_model_at_end = True,
             metric_for_best_model = "eval_loss",
             **config.get('SFTConfig', {})
@@ -79,9 +84,6 @@ if config['Task'] == 'SFT':
             )
 
         # Training
-        print('\n*****************')
-        print('Training', flush=True)
-        print('*****************')
         trainer.train()
         trainer.save_model(os.path.join(config['OutputDir'], 'best_model'))
 
@@ -93,26 +95,11 @@ if config['Task'] == 'SFT':
         tokenizer = build_tokenizer(os.path.join(config['OutputDir'], 'best_model'))
         model = build_policy_model(os.path.join(config['OutputDir'], 'best_model'), tokenizer)
 
-    # Creating Prompts and Generating Completions
+    # Creating Prompts
     print('\n*****************')
     print('Creating Prompts')
     print('*****************', flush=True)
     data['test'] = create_prompts(data['test'], tokenizer, config['PromptConfig'])
-
-    print('\n*****************')
-    print('Generating Completions')
-    print('*****************', flush=True)
-    data['test'] = compute_generations(data['test'], model, tokenizer, config['GenerationConfig'])
-
-    # Computing Metrics
-    print('\n*****************')
-    print('Computing Metrics')
-    print('*****************', flush=True)
-    metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
-    pprint(metrics, indent=4, width=2)
-
-    if not args.only_generate:
-        trainer.log(metrics)
 #####################################################################
 
 
@@ -156,6 +143,7 @@ elif config['Task'] == 'RLHF':
             data_collator = collator
         )
 
+        # Training
         print('\n*****************')
         print('Training')
         print('*****************', flush=True)
@@ -164,22 +152,6 @@ elif config['Task'] == 'RLHF':
     # Initializing Best Policy Model and Tokenizer
     tokenizer = build_tokenizer(os.path.join(config['OutputDir'], 'best_model'))
     model = build_policy_model(os.path.join(config['OutputDir'], 'best_model'), tokenizer)
-
-    # Generating Completions
-    print('\n*****************')
-    print('Generating Completions')
-    print('*****************', flush=True)
-    data['test'] = compute_generations(data['test'], model, tokenizer, config['GenerationConfig'])
-
-    # Computing Metrics
-    print('\n*****************')
-    print('Computing Metrics')
-    print('*****************', flush=True)
-    metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
-    pprint(metrics, indent=4, width=2)
-
-    if not args.only_generate:
-        trainer.accelerator.log(metrics, step = 0)
 #####################################################################
 
 
@@ -187,4 +159,26 @@ elif config['Task'] == 'RLHF':
 # Direct Preference Optimization
 elif config['Task'] == 'DPO':
     pass
+#####################################################################
+
+
+#####################################################################
+# Generating Completions
+print('\n*****************')
+print('Generating Completions')
+print('*****************', flush=True)
+data['test'] = compute_generations(data['test'], model, tokenizer, config['GenerationConfig'])
+#####################################################################
+
+
+#####################################################################
+# Computing Metrics
+print('\n*****************')
+print('Computing Metrics')
+print('*****************', flush=True)
+metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
+pprint(metrics, indent=4, width=2)
+
+if not args.only_generate:
+    trainer.accelerator.log(metrics, step = 0)
 #####################################################################

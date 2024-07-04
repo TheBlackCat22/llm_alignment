@@ -7,15 +7,15 @@
 1. Base Pre Trained Model
     - LLM: GPT2 
     - Scores:
-        - Perplexity:  36.40
-        - Reward Model Score:  0.61
+        - Perplexity:  34.95
+        - Reward Model Score:  0.48
 1. SFT
     - LLM: GPT2
     - Scores:
-        - Perplexity:  39.16
-        - Reward Model Score:  0.67
+        - Perplexity:  36.32
+        - Reward Model Score:  0.58
 2. RLHF
     - LLM: GPT2_SFT 
     - Scores: 
-        - Perplexity:  163.80
-        - Reward Model Score:  0.98
+        - Perplexity:  
+        - Reward Model Score:  

@@ -2,7 +2,7 @@ Task: RLHF
 Model: models/SFT/gpt2
 Dataset: imdb
 Seed: 42
-OutputDir: output/Run3
+OutputDir: output/Run2
 
 
 DataConfig: 
