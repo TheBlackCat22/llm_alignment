@@ -12,33 +12,25 @@ DataConfig:
 
 
 PromptConfig:
-  min_tokens: 18
-  max_tokens: 24
-  
+  min_tokens: 2
+  max_tokens: 8
 
 PPOConfig:
   learning_rate: 1.0e-05
-  adap_kl_ctrl: False
-  init_kl_coef: 0.001
-  gamma: 0.99
-  lam: 0.95
-  cliprange: 0.2
-  cliprange_value: 0.2
   vf_coef: 0.5
   batch_size: 112
   mini_batch_size: 28
-  gradient_accumulation_steps: 1
   ppo_epochs: 5
-  max_grad_norm: 1.0
   use_score_scaling: True
   use_score_norm: True
 
 
 GenerationConfig:
   do_sample: True
-  top_k: 50
-  min_length: 48
-  max_new_tokens: 48
+  top_k: 0.0
+  min_length: -1
+  max_new_tokens: 32
+  top_p: 1.0
 
 
 RewardConfig:
