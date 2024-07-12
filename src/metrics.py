@@ -7,9 +7,6 @@ from trl.models.modeling_value_head import AutoModelForCausalLMWithValueHead
 
 def perplexity(data, model, tokenizer):
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
-
     encodings = tokenizer("\n\n".join(data["text"]), return_tensors="pt")
 
     max_length = model.config.n_positions
@@ -23,7 +20,7 @@ def perplexity(data, model, tokenizer):
         trg_len = end_loc - i  # may be different from stride on last loop
 
         # get inputs and target ids
-        input_ids = encodings.input_ids[:, begin_loc:end_loc].to(device)
+        input_ids = encodings.input_ids[:, begin_loc:end_loc].to('cuda')
         target_ids = input_ids.clone()
         target_ids[:, :-trg_len] = -100
 
@@ -45,14 +42,11 @@ class LearnedRewardMetric:
         RewardModel,
         label_ix,
     ):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.tokenizer = AutoTokenizer.from_pretrained(RewardModel)
         self.tokenizer.truncation_side = "left"
 
-        self.model = AutoModelForSequenceClassification.from_pretrained(RewardModel).to(
-            self.device
-        )
+        self.model = AutoModelForSequenceClassification.from_pretrained(RewardModel, device_map = 'cuda')
 
         self.label_ix = label_ix
         self.batch_size = 100
@@ -67,12 +61,12 @@ class LearnedRewardMetric:
 
             batch = data[current_ix : current_ix + self.batch_size]
 
-            encoded = self.tokenizer(batch, return_tensors="pt", truncation=True, padding=True)
+            encoded = self.tokenizer(batch, return_tensors="pt", truncation=True, padding=True).to('cuda')
 
             with torch.no_grad():
                 outputs = self.model(
-                    input_ids=encoded.input_ids.to(self.device),
-                    attention_mask=encoded.attention_mask.to(self.device),
+                    input_ids=encoded.input_ids,
+                    attention_mask=encoded.attention_mask,
                 )
                 scores = torch.softmax(outputs.logits, dim=1)
                 scores = scores[:, self.label_ix].tolist()

@@ -31,7 +31,9 @@ LoraConfig:
   revision: null
   
 SFTConfig:
-  # SFTConfig
+
+  # TrainingArguments
+
   dataset_text_field: null  # The name of the text field of the dataset, in case this is passed by a user, the trainer will automatically create a `ConstantLengthDataset` based on the `dataset_text_field` argument. Defaults to null.
   packing: False  # Used only in case `dataset_text_field` is passed. This argument is used by the `ConstantLengthDataset` to pack the sequences of the dataset. Defaults to False.
   max_seq_length: null  # The maximum sequence length to use for the `ConstantLengthDataset` and for automatically creating the Dataset. Defaults to min of the smaller of the `tokenizer.model_max_length` and `1024`.
@@ -43,8 +45,84 @@ SFTConfig:
   eval_packing: null  # Whether to pack the eval dataset as well. Defaults to `packing` if `null` is passed.
   num_of_sequences: null  # The number of sequences to use for the `ConstantLengthDataset`. Defaults to `1024`.
   chars_per_token: 3.6  # The number of characters per token to use for the `ConstantLengthDataset`. Defaults to `3.6`. You can check how this is computed in the stack-llama example: https://github.com/huggingface/trl/blob/08f550674c553c36c51d1027613c29f14f3676a5/examples/stack_llama/scripts/supervised_finetuning.py#L53.
+  
+PPOConfig:
+  exp_name: main  # the name of this experiment (by default is the file name without the extension name)
+  seed: 0  # Seed value for random generations
+  log_with: null  # Log with either 'wandb' or 'tensorboard', check  https://huggingface.co/docs/accelerate/usage_guides/tracking for more details
+  task_name: null  # Name of task to use - used only for tracking purposes
+  model_name: gpt2  # Name of model to use - used only for tracking purposes
+  query_dataset: imdb  # Name of dataset to query - used only for tracking purposes
+  reward_model: sentiment-analysis:lvwerra/distilbert-imdb  # The reward model to use - used only for tracking purposes
+  remove_unused_columns: True  # Remove unused columns from the dataset if `datasets.Dataset` is used
+  tracker_kwargs: {}  # Keyword arguments for the tracker (e.g. python ppo.py --tracker_kwargs='{"wandb": {"entity": "my_wandb_entity", "name": "my_exp_name"}}'
+  accelerator_kwargs: {} # Keyword arguments for the accelerator
+  project_kwargs: {}  # Keyword arguments for the accelerator project config (e.g. `logging_dir`)
+  tracker_project_name: trl  # Name of project to use for tracking
+  push_to_hub_if_best_kwargs: {}  # Keyword arguments for pushing model to the hub during training (e.g. repo_id)
+
+  # hyperparameters
+  steps: 20000  # Number of training steps
+  learning_rate: 1.41e-5  # Adam learning rate
+  adap_kl_ctrl: True  # Use adaptive KL control, otherwise linear
+  init_kl_coef: 0.2   # Initial KL penalty coefficient (used for adaptive and linear control)
+  kl_penalty: kl  # kl penalty options: 'kl': model_logp - ref_logp,  'abs': abs(kl),  'mse': mean squared error mse(kl) and 'full': the actual kl for all tokens in the distribution
+  target: 6  # Target KL value for adaptive KL control
+  horizon: 10000  # Horizon for adaptive KL control
+  gamma: 1  # Gamma parameter for advantage calculation
+  lam: 0.95  # Lambda parameter for advantage calculation
+  cliprange: 0.2  # Range for clipping in PPO policy gradient loss
+  cliprange_value: 0.2  # Range for clipping values in loss calculation
+  vf_coef: 0.1  # Scaling factor for value loss
+  batch_size: 128  # Number of samples per optimisation step
+  mini_batch_size: 128  # Number of samples optimized in each mini batch
+  gradient_accumulation_steps: 1  # The number of gradient accumulation steps
+  world_size: null  # The world size for distributed training
+  ppo_epochs: 4  # Number of optimisation epochs per batch of samples
+  max_grad_norm: null  # Maximum gradient norm for gradient clipping
+  optimize_device_cache: False  # Optimize device cache for slightly more memory-efficient training
+  early_stopping: False  # Whether to stop the PPO optimization loop early is the KL too high
+  target_kl: 1  # Stop early if we exceed this value by over 50%
+  compare_steps: 1  # Number of steps between comparison of the current reward with the best seen so far
+  ratio_threshold: 10.0  # Skip mini-batches with high PPO ratios that can cause loss spikes
+  use_score_scaling: False  # Use score scaling
+  use_score_norm: False  # Use score normalization. Only applicable if use_score_scaling is True
+  score_clip: null  # Score clipping
+  whiten_rewards: False  # Whiten the rewards before compute advantages
+  gradient_checkpointing: False  # Enable gradient checkpointing
+
+DPOConfig:
 
   # TrainingArguments
+
+  beta: 0.1  # The beta factor in DPO loss. Higher beta means less divergence from the initial policy. For the IPO loss, beta is the regularization parameter denoted by tau in the paper.
+  label_smoothing: 0  # The robust DPO label smoothing parameter from the [cDPO](https://ericmitchell.ai/cdpo.pdf) report and [Robust DPO](https://arxiv.org/abs/2403.00409) paper that should be between 0 and 0.5.
+  loss_type: sigmoid  # The type of DPO loss to use. Either `"sigmoid"` the default DPO loss,`"hinge"` loss from [SLiC](https://arxiv.org/abs/2305.10425) paper, `"ipo"` from [IPO](https://arxiv.org/abs/2310.12036) paper, `"bco_pair"` from [BCO](https://arxiv.org/abs/2404.04656) paper or `"robust"` from [Robust DPO](https://arxiv.org/abs/2403.00409) paper, "aot" and "aot_pair" from alignment via optimal transport
+  label_pad_token_id: -100  # The label pad token id. This argument is required if you want to use the default data collator.
+  padding_value : null  # The padding value if it is different to the tokenizer's pad_token_id.
+  truncation_mode: keep_end  # The truncation mode to use, either `keep_end` or `keep_start`. This argument is required if you want to use the default data collator.
+  max_length: null  # The maximum length of the sequences in the batch. This argument is required if you want to use the default data collator.
+  max_prompt_length: null  # The maximum length of the prompt. This argument is required if you want to use the default data collator.
+  max_target_length: null  # The maximum length of the target. This argument is required if you want to use the default data collator and your model is an encoder-decoder.
+  is_encoder_decoder: null  # If no model is provided, we need to know if the model_init returns an encoder-decoder.
+  disable_dropout: True  # Whether or not to disable dropouts in `model` and `ref_model`.
+  generate_during_eval: False  # Whether to sample and log generations during evaluation step.
+  precompute_ref_log_probs: False  # Flag to precompute reference model log probabilities for training and evaluation datasets. This is useful if you want to train without the reference model and reduce the total GPU memory needed.
+  dataset_num_proc: null  # The number of workers to use to tokenize the data. Defaults to null.
+  model_init_kwargs: null  # Dict of Optional kwargs to pass when instantiating the model from a string
+  ref_model_init_kwargs: null  # Dict of Optional kwargs to pass when instantiating the ref model from a string
+  model_adapter_name: null  # Name of the train target PEFT adapter, when using LoRA with multiple adapters.
+  ref_adapter_name: null  # Name of the reference PEFT adapter, when using LoRA with multiple adapters.
+  reference_free: False  # If True, we ignore the _provided_ reference model and implicitly use a reference model that assigns equal probability to all responses.
+  force_use_ref_model: False  # In case one passes a PEFT model for the active model and you want to use a different model for the ref_model, set this flag to `True`.
+  f_divergence_type: reverse_kl  # The type of f-divergence regularization function to compute divergence between policy and reference model. This argument is optional, defaults to `FDivergenceType.REVERSE_KL`.
+  f_alpha_divergence_coef: 1.0  # The alpha coef in alpha-divergence(u^-alpha) regularization function for DPO loss.
+  sync_ref_model: False  # The flag for syncing reference model during training from the [TR-DPO](https://arxiv.org/pdf/2404.09656) paper.
+  ref_model_mixup_alpha: 0.9  # The alpha parameter from the [TR-DPO](https://arxiv.org/pdf/2404.09656) paper.
+  ref_model_sync_steps: 64  # The tau parameter from the [TR-DPO](https://arxiv.org/pdf/2404.09656) paper.
+  rpo_alpha: null  # The alpha parameter from the [RPO](https://arxiv.org/pdf/2404.19733) paper. If null, no weighting is applied and the loss is the same as the DPO loss.
+
+TrainingArguments:
   output_dir: <MANDATORY>  # The output directory where the model predictions and checkpoints will be written.
   overwrite_output_dir: False  # If `True`, overwrite the content of the output directory. Use this to continue training if `output_dir` points to a checkpoint directory.
   do_train: False  # Whether to run training or not. This argument is not directly used by [`Trainer`], it's intended to be used by your training/evaluation scripts instead. See the [example scripts](https://github.com/huggingface/transformers/tree/main/examples) for more details.
@@ -164,49 +242,3 @@ SFTConfig:
   split_batches: null  # Whether or not the accelerator should split the batches yielded by the dataloaders across the devices during distributed training. If set to `True`, the actual batch size used will be the same on any kind of distributed processes, but it must be a round multiple of the number of processes you are using (such as GPUs).
   include_tokens_per_second: False  # Whether or not to compute the number of tokens per second per device for training speed metrics. This will iterate over the entire training dataloader once beforehand, and will slow down the entire process.
   include_num_input_tokens_seen: False  # Whether or not to track the number of input tokens seen throughout training. May be slower in distributed training as gather operations must be called.
-
-
-PPOConfig:
-  exp_name: main  # the name of this experiment (by default is the file name without the extension name)
-  seed: 0  # Seed value for random generations
-  log_with: null  # Log with either 'wandb' or 'tensorboard', check  https://huggingface.co/docs/accelerate/usage_guides/tracking for more details
-  task_name: null  # Name of task to use - used only for tracking purposes
-  model_name: gpt2  # Name of model to use - used only for tracking purposes
-  query_dataset: imdb  # Name of dataset to query - used only for tracking purposes
-  reward_model: sentiment-analysis:lvwerra/distilbert-imdb  # The reward model to use - used only for tracking purposes
-  remove_unused_columns: True  # Remove unused columns from the dataset if `datasets.Dataset` is used
-  tracker_kwargs: {}  # Keyword arguments for the tracker (e.g. python ppo.py --tracker_kwargs='{"wandb": {"entity": "my_wandb_entity", "name": "my_exp_name"}}'
-  accelerator_kwargs: {} # Keyword arguments for the accelerator
-  project_kwargs: {}  # Keyword arguments for the accelerator project config (e.g. `logging_dir`)
-  tracker_project_name: trl  # Name of project to use for tracking
-  push_to_hub_if_best_kwargs: {}  # Keyword arguments for pushing model to the hub during training (e.g. repo_id)
-
-  # hyperparameters
-  steps: 20000  # Number of training steps
-  learning_rate: 1.41e-5  # Adam learning rate
-  adap_kl_ctrl: True  # Use adaptive KL control, otherwise linear
-  init_kl_coef: 0.2   # Initial KL penalty coefficient (used for adaptive and linear control)
-  kl_penalty: kl  # kl penalty options: 'kl': model_logp - ref_logp,  'abs': abs(kl),  'mse': mean squared error mse(kl) and 'full': the actual kl for all tokens in the distribution
-  target: 6  # Target KL value for adaptive KL control
-  horizon: 10000  # Horizon for adaptive KL control
-  gamma: 1  # Gamma parameter for advantage calculation
-  lam: 0.95  # Lambda parameter for advantage calculation
-  cliprange: 0.2  # Range for clipping in PPO policy gradient loss
-  cliprange_value: 0.2  # Range for clipping values in loss calculation
-  vf_coef: 0.1  # Scaling factor for value loss
-  batch_size: 128  # Number of samples per optimisation step
-  mini_batch_size: 128  # Number of samples optimized in each mini batch
-  gradient_accumulation_steps: 1  # The number of gradient accumulation steps
-  world_size: null  # The world size for distributed training
-  ppo_epochs: 4  # Number of optimisation epochs per batch of samples
-  max_grad_norm: null  # Maximum gradient norm for gradient clipping
-  optimize_device_cache: False  # Optimize device cache for slightly more memory-efficient training
-  early_stopping: False  # Whether to stop the PPO optimization loop early is the KL too high
-  target_kl: 1  # Stop early if we exceed this value by over 50%
-  compare_steps: 1  # Number of steps between comparison of the current reward with the best seen so far
-  ratio_threshold: 10.0  # Skip mini-batches with high PPO ratios that can cause loss spikes
-  use_score_scaling: False  # Use score scaling
-  use_score_norm: False  # Use score normalization. Only applicable if use_score_scaling is True
-  score_clip: null  # Score clipping
-  whiten_rewards: False  # Whiten the rewards before compute advantages
-  gradient_checkpointing: False  # Enable gradient checkpointing

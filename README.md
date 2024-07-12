@@ -34,10 +34,15 @@ python setup.py
 1. SFT
     - LLM: GPT2
     - Scores:
-        - Perplexity:  36.45
+        - Perplexity:  36.46
         - Reward Model Score:  0.66
 1. RLHF
     - LLM: GPT2_SFT 
     - Scores: 
         - Perplexity:  42.6
-        - Reward Model Score:  0.94
+        - Reward Model Score:  0.95
+1. DPO
+    - LLM: GPT2_SFT 
+    - Scores: 
+        - Perplexity:  42.05
+        - Reward Model Score:  0.95

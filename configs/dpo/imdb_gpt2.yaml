@@ -1,8 +1,9 @@
-Task: RLHF
+Task: DPO
 Model: models/SFT/gpt2
 Dataset: imdb
 Seed: 42
-OutputDir: output/Run2
+OutputDir: output/Run12
+DatasetDir: datasets
 
 
 DataConfig: 
@@ -16,14 +17,14 @@ PromptConfig:
   max_tokens: 8
 
 
-PPOConfig:
+DPOConfig:
+  beta: 0.5
   learning_rate: 1.0e-05
-  vf_coef: 0.5
-  batch_size: 112
-  mini_batch_size: 28
-  ppo_epochs: 5
-  use_score_scaling: True
-  use_score_norm: True
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 16  
+  logging_steps: 10
+  save_steps: 500
+  eval_steps: 100
 
 
 GenerationConfig:

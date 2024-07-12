@@ -1,5 +1,7 @@
 import os
+import yaml
 from tqdm import tqdm
+import numpy as np
 import torch
 from transformers import GenerationConfig, AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
@@ -17,13 +19,15 @@ def build_data(dataset, data_config, seed):
 
     if dataset == 'imdb':
         from src.datasets.imdb import dataloader
-        return dataloader(data_config, seed)
+        data = dataloader(data_config, seed)
+        print('\n', data) 
+        return data
     
     else:
         pass
 
 
-def create_prompts(dataset, tokenizer, prompt_config):
+def create_prompts(data, tokenizer, prompt_config):
 
     input_size = LengthSampler(prompt_config['min_tokens'], prompt_config['max_tokens'])
 
@@ -34,41 +38,40 @@ def create_prompts(dataset, tokenizer, prompt_config):
         sample['query'] = tokenizer.decode(prompt_tokens)
         return sample
 
-    dataset = dataset.map(tokenize)
-    dataset.set_format(type="torch")
+    data = data.map(tokenize)
+    data.set_format(type="torch")
 
-    return dataset
+    data['train'] = data['train'].remove_columns(['text', 'label'])
+    data['eval'] = data['eval'].remove_columns(['text', 'label'])
+    data['test'] = data['test'].remove_columns(['label', 'input_ids'])
+
+    print('\n', data) 
+
+    return data
 
 
 def compute_generations(data, model, tokenizer, generation_config):
 
-    generation_config = GenerationConfig(pad_token_id = tokenizer.eos_token_id, **generation_config)
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
+    tokenizer.padding_side = "left"
+    
     model.eval()
 
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token_id = tokenizer.eos_token_id
-    tokenizer.padding_side = "left"
+    generation_config = GenerationConfig(pad_token_id = tokenizer.eos_token_id, **generation_config)
 
-    batch_size = 16
-    n_prompts = len(data['query'])
+    batch_size = 32
 
-    generated_texts = []
-    for begin_idx in tqdm(range(0, n_prompts, batch_size)):
-        end_idx = min(begin_idx + batch_size, n_prompts)
-
-        prompt_texts = data['query'][begin_idx : end_idx]
-        prompt_tokens = tokenizer(prompt_texts, return_tensors="pt", padding=True, return_length=False).to(device)
+    def generate(sample):
+        prompt_texts = sample['query']
+        prompt_tokens = tokenizer(prompt_texts, return_tensors="pt", padding=True, return_length=False).to('cuda')
 
         with torch.no_grad():
             gen_tokens = model.generate(**prompt_tokens, generation_config = generation_config)
 
-        gen_texts = tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-        generated_texts.extend(gen_texts)
+        sample['response'] = tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
 
-    data = data.add_column('response', generated_texts)
+        return sample
+
+    data = data.map(generate, batched=True, batch_size = batch_size)
     
     return data
 
@@ -98,7 +101,7 @@ def build_tokenizer(tokenizer_path):
 
 def build_policy_model(model_dir, tokenizer, lora_config=None):
     
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(model_dir, peft_config=lora_config)
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(model_dir, peft_config=lora_config, device_map = 'cuda')
     if model.config.pad_token_id is None:
         model.config.pad_token_id = tokenizer.pad_token_id
 
@@ -145,3 +148,100 @@ def ppo_trainer_train(trainer, generation_config, reward_model):
             break
         
     return trainer
+
+
+def preference_data_exists(config):
+    
+    if os.path.exists(os.path.join(config['DatasetDir'], config['Dataset'] + '_preference', 'config.yaml')):
+
+        with open(os.path.join(config['DatasetDir'], config['Dataset'] + '_preference', 'config.yaml'), "r") as f:
+            saved_config = yaml.safe_load(f)
+
+        data_config = {k: config[k] for k in ('Model', 'Dataset', 'DataConfig', 'PromptConfig', 'GenerationConfig')}
+
+        if data_config == saved_config:
+            return True
+    
+    return False
+
+
+def prepare_for_dpo(config, data, tokenizer, reward_model):
+
+    model = build_policy_model(config['Model'], tokenizer)
+    
+    print('\n  - Sampling Completion Pairs')
+    data['train'] = sample_completion_pairs(data['train'], model, tokenizer, config['GenerationConfig'])
+    data['eval'] = sample_completion_pairs(data['eval'], model, tokenizer, config['GenerationConfig'])
+
+    print('\n  - Ranking Completions')
+    data['train'] = rank_completions(data['train'], reward_model)
+    data['eval'] = rank_completions(data['eval'], reward_model)
+
+    data['train'] = data['train'].rename_column('query', 'prompt')
+    data['eval'] = data['eval'].rename_column('query', 'prompt')
+
+    data['train'] = data['train'].remove_columns(['input_ids'])
+    data['eval'] = data['eval'].remove_columns(['input_ids'])
+
+    print(f"\n  - Saving Dataset to {os.path.join(config['DatasetDir'], config['Dataset'] + '_preference')}")
+    data.save_to_disk(os.path.join(config['DatasetDir'], config['Dataset'] + '_preference'))
+    with open(os.path.join(config['DatasetDir'], config['Dataset'] + '_preference', 'config.yaml'), 'w') as outfile:
+        yaml.dump(
+            {k: config[k] for k in ('Model', 'Dataset', 'DataConfig', 'PromptConfig', 'GenerationConfig')}, 
+            outfile, 
+            default_flow_style=False
+        )
+
+    print('\n', data) 
+
+    return data
+
+
+def sample_completion_pairs(data, model, tokenizer, generation_config):
+
+    tokenizer.padding_side = "left"
+    
+    model.eval()
+
+    generation_config = GenerationConfig(pad_token_id = tokenizer.eos_token_id, **generation_config)
+
+    batch_size = 32
+
+    def generate(sample):
+        prompt_texts = sample['query']
+        prompt_tokens = tokenizer(prompt_texts, return_tensors="pt", padding=True, return_length=False).to('cuda')
+
+        with torch.no_grad():
+            gen_tokens1 = model.generate(**prompt_tokens, generation_config = generation_config)
+            gen_tokens2 = model.generate(**prompt_tokens, generation_config = generation_config)
+
+        gen_texts1 = tokenizer.batch_decode(gen_tokens1, skip_special_tokens=True)
+        gen_texts2 = tokenizer.batch_decode(gen_tokens2, skip_special_tokens=True)
+
+        sample['response1'] = gen_texts1
+        sample['response2'] = gen_texts2
+
+        return sample
+
+    data = data.map(generate, batched=True, batch_size = batch_size)
+    
+    return data
+
+
+def rank_completions(data, reward_model):
+
+    texts = data['response1'] + data['response2']
+    scores = reward_model.compute(texts)
+    
+    texts = np.array(texts).reshape(2, -1).T
+    scores = np.array(scores).reshape(2, -1).T
+    
+    chosen = np.take_along_axis(texts, scores.argmax(axis=1, keepdims=True), axis=1)
+    rejected = np.take_along_axis(texts, scores.argmin(axis=1, keepdims=True), axis=1)
+
+    data = data.add_column("chosen", chosen.squeeze(1).tolist())
+    data = data.add_column("rejected", rejected.squeeze(1).tolist())
+
+    data = data.remove_columns(['response1', 'response2'])
+    
+    return data

@@ -3,12 +3,15 @@ import yaml
 import argparse
 from pprint import pprint
 from peft import LoraConfig
-from trl.core import set_seed
+from datasets import load_from_disk
 
+from trl.core import set_seed
 from trl.trainer.sft_config import SFTConfig
 from trl.trainer.sft_trainer import SFTTrainer 
 from trl.trainer.ppo_config import PPOConfig
 from trl.trainer.ppo_trainer import PPOTrainer
+from trl.trainer.dpo_config import DPOConfig
+from trl.trainer.dpo_trainer import DPOTrainer
 
 from src.utils import *
 from src.metrics import LearnedRewardMetric
@@ -41,18 +44,14 @@ set_seed(config['Seed'])
 
 
 #####################################################################
-# Importing Data
-print('\n*****************')
-print('Importing Data')
-print('*****************', flush=True)
-data = build_data(config['Dataset'], config.get('DataConfig'), config['Seed'])
-print('\n', data)  
-#####################################################################
-
-
-#####################################################################
 # Supervised Fine Tuning
 if config['Task'] == 'SFT':
+
+    # Importing Data
+    print('\n*****************')
+    print('Importing Raw Data')
+    print('*****************', flush=True)
+    data = build_data(config['Dataset'], config.get('DataConfig'), config['Seed']) 
 
     if not args.only_generate:
         
@@ -99,13 +98,19 @@ if config['Task'] == 'SFT':
     print('\n*****************')
     print('Creating Prompts')
     print('*****************', flush=True)
-    data['test'] = create_prompts(data['test'], tokenizer, config['PromptConfig'])
+    data = create_prompts(data, tokenizer, config['PromptConfig'])
 #####################################################################
 
 
 #####################################################################
 # Reinforcement Learning from Human Feedback
 elif config['Task'] == 'RLHF':
+
+    # Importing Data
+    print('\n*****************')
+    print('Importing Raw Data')
+    print('*****************', flush=True)
+    data = build_data(config['Dataset'], config.get('DataConfig'), config['Seed']) 
 
     # Creating Prompts
     print('\n*****************')
@@ -158,7 +163,83 @@ elif config['Task'] == 'RLHF':
 #####################################################################
 # Direct Preference Optimization
 elif config['Task'] == 'DPO':
-    pass
+
+    tokenizer = build_tokenizer(config['Model'])
+
+    if preference_data_exists(config):
+        # Loading Saved Data
+        print('\n*****************')
+        print('Loading Saved Data')
+        print('*****************', flush=True)
+        print(f"  - Loading Dataset from {os.path.join(config['DatasetDir'], config['Dataset'] + '_preference')}")
+        data = load_from_disk(os.path.join(config['DatasetDir'], config['Dataset'] + '_preference'))
+    
+    else:
+        # Importing Data
+        print('\n*****************')
+        print('Importing Raw Data')
+        print('*****************', flush=True)
+        data = build_data(config['Dataset'], config.get('DataConfig'), config['Seed']) 
+
+        # Creating Prompts
+        print('\n*****************')
+        print('Creating Prompts')
+        print('*****************', flush=True)
+        data = create_prompts(data, tokenizer, config['PromptConfig'])
+
+        # Initializing Reward Model
+        reward_model = LearnedRewardMetric(*config['RewardConfig'].values())
+
+        # Generating Preference Data
+        print('\n*****************')
+        print('Generating Preference Data')
+        print('*****************', flush=True)
+        data = prepare_for_dpo(config, data, tokenizer, reward_model)
+
+
+    if not args.only_generate:
+        
+        print('\n*****************')
+        print('Training')
+        print('*****************', flush=True)
+
+        # Creating Lora Config
+        peft_config = LoraConfig(**config['LoraConfig']) if config.get('LoraConfig') else None
+
+        # Creating DPO Config & Trainer
+        dpo_config = DPOConfig(
+            output_dir = config['OutputDir'],
+            report_to = 'tensorboard',
+            save_total_limit = 1,
+            save_only_model = True,
+            eval_strategy = 'steps',
+            load_best_model_at_end = True,
+            metric_for_best_model = "eval_loss",
+            max_length = tokenizer.model_max_length,
+            max_prompt_length = config['PromptConfig']['max_tokens'],
+            remove_unused_columns = False,
+            **config.get('DPOConfig', {})
+            )
+        trainer = DPOTrainer(
+            model = config['Model'],
+            args = dpo_config,
+            train_dataset = data['train'],
+            eval_dataset = data['eval'],
+            tokenizer = tokenizer,
+            peft_config = peft_config
+            )
+
+        # Training
+        trainer.train()
+        trainer.save_model(os.path.join(config['OutputDir'], 'best_model'))
+
+        tokenizer = trainer.tokenizer
+        model = trainer.model
+
+    else:
+        # Initializing Best Policy Model and Tokenizer
+        tokenizer = build_tokenizer(os.path.join(config['OutputDir'], 'best_model'))
+        model = build_policy_model(os.path.join(config['OutputDir'], 'best_model'), tokenizer)   
 #####################################################################
 
 
@@ -180,5 +261,5 @@ metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig']
 pprint(metrics, indent=4, width=2)
 
 if not args.only_generate:
-    trainer.accelerator.log(metrics, step = 0)
+    trainer.log(metrics)
 #####################################################################
