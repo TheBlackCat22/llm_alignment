@@ -29,7 +29,7 @@ def perplexity(data, model, tokenizer):
             if isinstance(model, AutoModelForCausalLMWithValueHead):
                 neg_log_likelihood = outputs[1] * trg_len
             else:
-                neg_log_likelihood = outputs[0] * trg_len
+                neg_log_likelihood = outputs.loss * trg_len
 
         nlls.append(neg_log_likelihood)
 
@@ -74,3 +74,39 @@ class LearnedRewardMetric:
             current_ix += self.batch_size
 
         return list(map(torch.tensor, all_scores))
+
+
+def kl_div(data, model, ref_model, tokenizer):
+    
+    def logprobs_from_logits(logits, response):
+        all_logprob = torch.nn.functional.log_softmax(logits, dim=-1)
+        logprob = torch.gather(all_logprob, 2, torch.unsqueeze(response, -1)).squeeze(-1)
+        return logprob
+
+    current_ix = 0
+    batch_size = 32
+
+    kls = []
+    while current_ix < len(data):
+
+        batch = data[current_ix : current_ix + batch_size]
+
+        query_len = tokenizer(batch['query'], return_tensors="pt", truncation=True, padding=True).input_ids.shape[1]
+        tokens = tokenizer(batch['response'], return_tensors="pt", truncation=True, padding=True).to('cuda')
+
+        with torch.no_grad():
+
+            logit = model(**tokens).logits 
+            ref_logit = ref_model(**tokens).logits 
+
+            logprob = logprobs_from_logits(logit[:, query_len:-1], tokens['input_ids'][:, query_len+1:])
+            ref_logprob = logprobs_from_logits(ref_logit[:, query_len:-1], tokens['input_ids'][:, query_len+1:])
+
+            kl = (logprob - ref_logprob).sum(1)
+            kls.append(kl)
+
+        current_ix += batch_size
+
+    kls = torch.cat(kls, 0)
+    
+    return kls.mean().item()

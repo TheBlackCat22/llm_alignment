@@ -7,7 +7,6 @@ from transformers import GenerationConfig, AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
 
 from trl.core import LengthSampler
-from trl.models.modeling_value_head import AutoModelForCausalLMWithValueHead
 
 import src.metrics as metrics
 
@@ -76,16 +75,22 @@ def compute_generations(data, model, tokenizer, generation_config):
     return data
 
 
-def compute_metrics(data, model, tokenizer, metric_config):
+def compute_metrics(data, model, ref_model, tokenizer, metric_config):
 
+    print('  - Calculating Perplexity')
     perplexity = metrics.perplexity(data, model, tokenizer)
 
+    print('  - Calculating Learned Reward')
     rewards = metrics.LearnedRewardMetric(metric_config['RewardModel'], metric_config['label_idx']).compute(data['response'])
     lrm_score = (sum(rewards)/len(rewards)).item()
 
+    print('  - Calculating KL Divergence\n')
+    kl = metrics.kl_div(data, model, ref_model, tokenizer)
+
     return {
         'metrics/perplexity' : perplexity,
-        'metrics/LearnedModelScore' : lrm_score
+        'metrics/LearnedModelScore' : lrm_score,
+        'metrics/KL_Div' : kl
     }
 
 
@@ -99,9 +104,9 @@ def build_tokenizer(tokenizer_path):
     return tokenizer
 
 
-def build_policy_model(model_dir, tokenizer, lora_config=None):
+def build_policy_model(model_dir, tokenizer):
     
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(model_dir, peft_config=lora_config, device_map = 'cuda')
+    model = AutoModelForCausalLM.from_pretrained(model_dir, device_map = 'cuda')
     if model.config.pad_token_id is None:
         model.config.pad_token_id = tokenizer.pad_token_id
 

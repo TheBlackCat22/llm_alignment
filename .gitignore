@@ -5,6 +5,5 @@ __pycache__
 /slurm/
 /datasets/
 
-/OutMain*
-/stats_*
 /TODO.md
+/try.py

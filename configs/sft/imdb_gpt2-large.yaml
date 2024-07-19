@@ -1,8 +1,8 @@
 Task: SFT
-Model: models/Default/gpt2
+Model: models/Default/gpt2-large
 Dataset: imdb
 Seed: 42
-OutputDir: output/gpt2
+OutputDir: output/Run1
 
 
 DataConfig: 
@@ -17,10 +17,10 @@ PromptConfig:
   
 
 SFTConfig:
-  per_device_train_batch_size: 8
-  per_device_eval_batch_size: 16
-  learning_rate: 5.0e-05
-  num_train_epochs: 8  
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 8
+  learning_rate: 5.0e-06
+  num_train_epochs: 4  
   logging_steps: 10
   save_steps: 500
   eval_steps: 100
@@ -35,5 +35,5 @@ GenerationConfig:
 
 
 MetricConfig:
-  RewardModel: models/Default/distilbert
+  RewardModel: models/Default/siebert
   label_idx: 1

@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from ..import_utils import _LazyModule, is_diffusers_available, OptionalDependencyNotAvailable
 
 _import_structure = {
+    "callbacks": ["RichProgressCallback", "SyncRefModelCallback"],
     "utils": [
         "AdaptiveKLController",
         "FixedKLController",
@@ -27,7 +28,6 @@ _import_structure = {
         "RunningMoments",
         "disable_dropout_in_model",
         "peft_module_casting_to_bf16",
-        "RichProgressCallback",
     ],
     "dpo_config": ["DPOConfig", "FDivergenceConstants", "FDivergenceType"],
     "dpo_trainer": ["DPOTrainer"],
@@ -49,6 +49,16 @@ _import_structure = {
     "sft_trainer": ["SFTTrainer"],
     "base": ["BaseTrainer"],
     "ddpo_config": ["DDPOConfig"],
+    "callbacks": ["RichProgressCallback", "SyncRefModelCallback", "WinRateCallback"],
+    "judges": [
+        "BaseJudge",
+        "BaseAPIJudge",
+        "HuggingFaceJudge",
+        "MockAPIJudge",
+        "MockJudge",
+        "OpenAIJudge",
+        "PairRMJudge",
+    ],
 }
 
 try:
@@ -62,6 +72,7 @@ else:
 
 if TYPE_CHECKING:
     # isort: off
+    from .callbacks import RichProgressCallback, SyncRefModelCallback
     from .utils import (
         AdaptiveKLController,
         FixedKLController,
@@ -70,7 +81,6 @@ if TYPE_CHECKING:
         RunningMoments,
         disable_dropout_in_model,
         peft_module_casting_to_bf16,
-        RichProgressCallback,
     )
 
     # isort: on
@@ -95,6 +105,8 @@ if TYPE_CHECKING:
     from .reward_trainer import RewardTrainer, compute_accuracy
     from .sft_config import SFTConfig
     from .sft_trainer import SFTTrainer
+    from .callbacks import RichProgressCallback, SyncRefModelCallback, WinRateCallback
+    from .judges import BaseJudge, BaseAPIJudge, HuggingFaceJudge, MockAPIJudge, MockJudge, OpenAIJudge, PairRMJudge
 
     try:
         if not is_diffusers_available():

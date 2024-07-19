@@ -12,6 +12,7 @@ from trl.trainer.ppo_config import PPOConfig
 from trl.trainer.ppo_trainer import PPOTrainer
 from trl.trainer.dpo_config import DPOConfig
 from trl.trainer.dpo_trainer import DPOTrainer
+from trl.models import AutoModelForCausalLMWithValueHead
 
 from src.utils import *
 from src.metrics import LearnedRewardMetric
@@ -31,6 +32,7 @@ args = parser.parse_args()
 print('\n*****************')
 print('Config')
 print('*****************', flush=True)
+
 with open(args.config, "r") as f:
     config = yaml.safe_load(f)
 pprint(config, indent=4, width=2)
@@ -124,7 +126,9 @@ elif config['Task'] == 'RLHF':
         peft_config = LoraConfig(**config['LoraConfig']) if config.get('LoraConfig') else None
         
         # Initializing Policy Model
-        model = build_policy_model(config['Model'], tokenizer, peft_config)
+        model = AutoModelForCausalLMWithValueHead.from_pretrained(model_dir, peft_config=lora_config, device_map = 'cuda')
+        if model.config.pad_token_id is None:
+            model.config.pad_token_id = tokenizer.pad_token_id
 
         # Initializing Reward Model
         reward_model = LearnedRewardMetric(*config['RewardConfig'].values())
@@ -248,6 +252,7 @@ elif config['Task'] == 'DPO':
 print('\n*****************')
 print('Generating Completions')
 print('*****************', flush=True)
+
 data['test'] = compute_generations(data['test'], model, tokenizer, config['GenerationConfig'])
 #####################################################################
 
@@ -257,9 +262,15 @@ data['test'] = compute_generations(data['test'], model, tokenizer, config['Gener
 print('\n*****************')
 print('Computing Metrics')
 print('*****************', flush=True)
-metrics = compute_metrics(data['test'], model, tokenizer, config['MetricConfig'])
+
+ref_model = build_policy_model(config['Model'], tokenizer)
+
+metrics = compute_metrics(data['test'], model, ref_model, tokenizer, config['MetricConfig'])
 pprint(metrics, indent=4, width=2)
 
 if not args.only_generate:
-    trainer.log(metrics)
+    if config['Task'] == 'RLHF':
+        trainer.accelerator.log(metrics, step = 0)
+    else:
+        trainer.log(metrics)
 #####################################################################

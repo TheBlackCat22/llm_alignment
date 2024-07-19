@@ -27,22 +27,27 @@ python setup.py
 **Problem Statement**: Align pre-trained llms to positively generate imdb rewiews based on a given prompt.
 **Solutions**:
 1. Base Pre Trained Model
-    - LLM: GPT2 
-    - Scores:
+    - GPT2:
         - Perplexity:  34.95
         - Reward Model Score:  0.51
+    - GPT2-large:
+        - Perplexity:  23.62
+        - Reward Model Score:  0.49
 1. SFT
-    - LLM: GPT2
-    - Scores:
+    - GPT2:
         - Perplexity:  36.46
         - Reward Model Score:  0.66
+    - GPT2-large:
+        - Perplexity:  23.81
+        - Reward Model Score:  0.64
 1. RLHF
-    - LLM: GPT2_SFT 
-    - Scores: 
+    - GPT2_SFT: 
         - Perplexity:  42.6
         - Reward Model Score:  0.95
 1. DPO
-    - LLM: GPT2_SFT 
-    - Scores: 
+    - GPT2_SFT: 
         - Perplexity:  42.05
         - Reward Model Score:  0.95
+    - GPT2-large:
+        - Perplexity:  29.8
+        - Reward Model Score:  0.98
